@@ -89,8 +89,15 @@ void print_field(ostream &out, const array<array<char, N>, N>& f) {
 }
 
 template <class RandomEngine>
-array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngine& gen, chrono::high_resolution_clock::time_point clock_end) {
+array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngine& gen, chrono::high_resolution_clock::time_point clock_end) {
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
+
+    int len_min = INT_MAX;
+    int len_max = INT_MIN;
+    for (const string &s_i : s) {
+        len_min = min<int>(len_min, s_i.length());
+        len_max = max<int>(len_max, s_i.length());
+    }
 
     array<array<char, N>, N> ans = get_empty_board();
     int ans_c = 0;
@@ -115,25 +122,25 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
     }
 
     array<vector<vector<int>>, LEN_MAX + 1> g_from;
-    REP (len, LEN_MAX + 1) {
+    REP (len, len_max + 1) {
         g_from[len].resize(m);
     }
     REP (i, m) {
         REP (j, m) {
             int dist = s[i].length() - max_common_length[i][j];
-            assert (0 <= dist and dist < LEN_MAX + 1);
+            assert (0 <= dist and dist < len_max + 1);
             g_from[dist][i].push_back(j);
         }
     }
 
     array<vector<vector<int>>, LEN_MAX + 1> g_to;
-    REP (len, LEN_MAX + 1) {
+    REP (len, len_max + 1) {
         g_to[len].resize(m);
     }
     REP (i, m) {
         REP (j, m) {
             int dist = s[j].length() - max_common_length[i][j];
-            assert (0 <= dist and dist < LEN_MAX + 1);
+            assert (0 <= dist and dist < len_max + 1);
             g_to[dist][i].push_back(j);
         }
     }
@@ -145,7 +152,7 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
 
     auto update = [&](int y, int x, char c) {
         REP (is_hr, 2) {
-            REP3 (len, LEN_MIN, LEN_MAX + 1) {
+            REP3 (len, len_min, len_max + 1) {
                 REP3 (delta, - len + 1, 0 + 1) {
                     string t = is_hr
                         ? get_horizontal_subarray_at(y, (x + delta + N) % N, len, cur)
