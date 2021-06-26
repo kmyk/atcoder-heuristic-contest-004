@@ -93,7 +93,9 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
 
     array<array<char, N>, N> ans = get_empty_board();
-    pair<int, int> highscore = make_pair(- m, N * N);  // (m - c, d)
+    int ans_c = 0;
+    int ans_d = N * N;
+    int64_t highscore = calculate_score(m, ans_c, ans_d);
 
     unordered_map<string, vector<int>> occur;
     REP (i, m) {
@@ -136,6 +138,59 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
         }
     }
 
+    array<array<char, N>, N> cur = get_empty_board();
+    int cur_c = 0;
+    int cur_d = N * N;
+    vector<int> used(m);
+
+    auto update = [&](int y, int x, char c) {
+        REP (is_hr, 2) {
+            REP3 (len, LEN_MIN, LEN_MAX + 1) {
+                REP3 (delta, - len + 1, 0 + 1) {
+                    string t = is_hr
+                        ? get_horizontal_subarray_at(y, (x + delta + N) % N, len, cur)
+                        : get_vertical_subarray_at((y + delta + N) % N, x, len, cur);
+                    auto it = occur.find(t);
+                    if (it != occur.end()) {
+                        for (int j : it->second) {
+                            used[j] -= 1;
+                            if (not used[j]) {
+                                cur_c -= 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (cur[y][x] == '.') {
+            cur_d -= 1;
+        }
+        cur[y][x] = c;
+        if (cur[y][x] == '.') {
+            cur_d += 1;
+        }
+
+        REP (is_hr, 2) {
+            REP3 (len, LEN_MIN, LEN_MAX + 1) {
+                REP3 (delta, - len + 1, 0 + 1) {
+                    string t = is_hr
+                        ? get_horizontal_subarray_at(y, (x + delta + N) % N, len, cur)
+                        : get_vertical_subarray_at((y + delta + N) % N, x, len, cur);
+                    auto it = occur.find(t);
+                    if (it != occur.end()) {
+                        for (int j : it->second) {
+                            if (not used[j]) {
+                                cur_c += 1;
+                            }
+                            used[j] += 1;
+                        }
+                    }
+                }
+            }
+        }
+    };
+
     int64_t iteration = 0;
     double temperature = 1.0;
     for (; ; ++ iteration) {
@@ -148,93 +203,33 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
             }
         }
 
-        array<array<char, N>, N> f = get_empty_board();
-        int c = 0;
-        int d = N * N;
-        vector<bool> used(m);
-        int y = 0;
-        int x = 0;
+        int64_t prv_score = calculate_score(m, cur_c, cur_d);
 
-        int last = -1;
-        while (c < m) {
-            int i = -1;
-            if (last == -1) {
-                i = uniform_int_distribution<int>(0, m - 1)(gen);
-            } else {
-                REP (len, LEN_MAX + 1) {
-                    vector<int> cands;
-                    for (int j : g_to[len][last]) {
-                        if (not used[j]) {
-                            cands.push_back(j);
-                        }
-                    }
-                    if (not cands.empty()) {
-                        i = cands[uniform_int_distribution<int>(0, (int)cands.size() - 1)(gen)];
-                        break;
-                    }
-                }
-            }
-            assert (i != -1);
+        int y = uniform_int_distribution<int>(0, N - 1)(gen);
+        int x = uniform_int_distribution<int>(0, N - 1)(gen);
+        char c = uniform_int_distribution<char>('A', 'H')(gen);
+        char preserved = cur[y][x];
+        update(y, x, c);
 
-            int offset = -1;
-            REP_R (k, (int)s[i].length()) {
-                if (x - k >= 0 and x - k + s[i].length() <= N and is_horizontal_subarray_at(s[i].substr(0, k), y, x - k, f)) {
-                    offset = k;
-                    break;
-                }
-            }
-            if (offset == -1) {
-                ++ y;
-                x = 0;
-                if (y >= N) {
-                    break;
-                }
-                offset = 0;
+        int64_t nxt_score = calculate_score(m, cur_c, cur_d);
+
+        int64_t delta = nxt_score - prv_score;
+        auto probability = [&]() {
+            constexpr long double boltzmann = 0.01;
+            return exp(boltzmann * delta / temperature);
+        };
+        if (delta >= 0 or bernoulli_distribution(probability())(gen)) {
+            // accept
+            if (highscore < nxt_score) {
+                highscore = nxt_score;
+                ans = cur;
+                ans_c = cur_c;
+                ans_d = cur_d;
             }
 
-            REP3 (z, offset, s[i].length()) {
-                assert (x < N);
-                f[y][x] = s[i][z];
-
-                REP3 (len, LEN_MIN, LEN_MAX + 1) {
-                    if (x + 1 - len >= 0) {
-                        string t = get_horizontal_subarray_at(y, x + 1 - len, len, f);
-                        auto it = occur.find(t);
-                        if (it != occur.end()) {
-                            for (int j : it->second) {
-                                if (not used[j]) {
-                                    c += 1;
-                                    used[j] = true;
-                                }
-                            }
-                        }
-                    }
-                    if (y - len >= 0) {
-                        string t = get_vertical_subarray_at(y - len, x, len, f);
-                        auto it = occur.find(t);
-                        if (it != occur.end()) {
-                            for (int j : it->second) {
-                                if (not used[j]) {
-                                    c += 1;
-                                    used[j] = true;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                x += 1;
-                d -= 1;
-            }
-
-            assert (used[i]);
-            last = i;
-        }
-
-        pair<int, int> score = make_pair(m - c, d);
-        if (highscore < score) {
-            highscore = score;
-            ans = f;
+        } else {
+            // reject
+            update(y, x, preserved);
         }
     }
 
@@ -246,9 +241,9 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
 
     cerr << "m = " << m << endl;
     cerr << "average length = " << average_length << endl;
-    cerr << "c = " << m - highscore.first << endl;
-    cerr << "d = " << highscore.second << endl;
-    cerr << "score = " << calculate_score(m, m - highscore.first, highscore.second) / 1.0e8 << "e8" << endl;
+    cerr << "c = " << ans_c << endl;
+    cerr << "d = " << ans_d << endl;
+    cerr << "score = " << highscore / 1.0e8 << "e8" << endl;
     return ans;
 }
 
