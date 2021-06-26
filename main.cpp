@@ -42,51 +42,11 @@ array<array<char, N>, N> get_empty_board() {
     return f;
 }
 
-bool is_horizontal_subarray_at(const string& s, int y, int x, const array<array<char, N>, N>& f) {
-    REP (i, s.length()) {
-        if (s[i] != f[y][(x + i) % N]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool is_vertical_subarray_at(const string& s, int y, int x, const array<array<char, N>, N>& f) {
-    REP (i, s.length()) {
-        if (s[i] != f[(y + i) % N][x]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-string get_horizontal_subarray_at(int y, int x, int len, const array<array<char, N>, N>& f) {
-    string s(len, '\0');
-    REP (i, len) {
-        s[i] = f[y][(x + i) % N];
-    }
-    return s;
-}
-
-string get_vertical_subarray_at(int y, int x, int len, const array<array<char, N>, N>& f) {
-    string s(len, '\0');
-    REP (i, len) {
-        s[i] = f[(y + i) % N][x];
-    }
-    return s;
-}
-
 int64_t calculate_score(int m, int c, int d) {
     return c < m ? 1.0e8 * c / m : 1.0e8 * 2 * N * N / (2 * N * N - d);
 }
 
 void print_field(ostream &out, const array<array<char, N>, N>& f) {
-    REP (y, N) {
-        REP (x, N) {
-            out << f[y][x];
-        }
-        out << endl;
-    }
 }
 
 struct trie_node {
@@ -132,32 +92,6 @@ const trie_node *peek_trie(char c, const trie_node *trie) {
     return trie->children[c - 'A'];
 }
 
-const vector<int> *lookup_trie_horizontal(int y, int x, int len, const array<array<char, N>, N>& f, const trie_node *trie) {
-    if (trie == nullptr) {
-        return nullptr;
-    }
-    if (len == 0) {
-        return &trie->indices;
-    }
-    if (f[y][x] == '.') {
-        return nullptr;
-    }
-    return lookup_trie_horizontal(y, (x + 1) % N, len - 1, f, trie->children[f[y][x] - 'A']);
-}
-
-const vector<int> *lookup_trie_vertical(int y, int x, int len, const array<array<char, N>, N>& f, const trie_node *trie) {
-    if (trie == nullptr) {
-        return nullptr;
-    }
-    if (len == 0) {
-        return &trie->indices;
-    }
-    if (f[y][x] == '.') {
-        return nullptr;
-    }
-    return lookup_trie_vertical((y + 1) % N, x, len - 1, f, trie->children[f[y][x] - 'A']);
-}
-
 inline int modadd(int a, int b, int m) {
     int c = a + b;
     return c >= m ? c - m : c;
@@ -183,47 +117,6 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
     int ans_c = 0;
     int ans_d = N * N;
     int64_t highscore = calculate_score(m, ans_c, ans_d);
-
-    unordered_map<string, vector<int>> occur;
-    REP (i, m) {
-        occur[s[i]].push_back(i);
-    }
-
-    vector<vector<int>> max_common_length(m, vector<int>(m));
-    REP (i, m) {
-        REP (j, m) {
-            REP_R (k, min(s[i].length(), s[j].length()) + 1) {
-                if (s[i].substr(s[i].length() - k) == s[j].substr(0, k)) {
-                    max_common_length[i][j] = k;
-                    break;
-                }
-            }
-        }
-    }
-
-    array<vector<vector<int>>, LEN_MAX + 1> g_from;
-    REP (len, len_max + 1) {
-        g_from[len].resize(m);
-    }
-    REP (i, m) {
-        REP (j, m) {
-            int dist = s[i].length() - max_common_length[i][j];
-            assert (0 <= dist and dist < len_max + 1);
-            g_from[dist][i].push_back(j);
-        }
-    }
-
-    array<vector<vector<int>>, LEN_MAX + 1> g_to;
-    REP (len, len_max + 1) {
-        g_to[len].resize(m);
-    }
-    REP (i, m) {
-        REP (j, m) {
-            int dist = s[j].length() - max_common_length[i][j];
-            assert (0 <= dist and dist < len_max + 1);
-            g_to[dist][i].push_back(j);
-        }
-    }
 
     const trie_node *trie = construct_trie(s);
 
@@ -288,11 +181,6 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
     };
 
-    int last_i = -1;
-    bool last_is_hr = false;
-    int last_y = -1;
-    int last_x = -1;
-
     int64_t iteration = 0;
     double temperature = 1.0;
     for (; ; ++ iteration) {
@@ -312,7 +200,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         std::function<void ()> reject = [&]() {};
 
         double choice = uniform_real_distribution<double>()(gen);
-        if (choice < 0.99) {
+        if (choice < 0.99 or cur_c == m) {
             char c = uniform_int_distribution<char>('A', 'H')(gen);
             char preserved = cur[y][x];
             update(y, x, c);
@@ -320,46 +208,15 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                 update(y, x, preserved);
             };
 
-            last_i = -1;
-
-        } else if (choice < 1.0 and cur_c < m) {
+        } else {
             int i;
-            bool is_hr;
-            if (last_i == -1) {
-                while (true) {
-                    i = uniform_int_distribution<int>(0, m - 1)(gen);
-                    if (not used[i]) {
-                        break;
-                    }
-                }
-                is_hr = uniform_int_distribution<int>(0, 4 - 1)(gen);
-            } else {
-                is_hr = last_is_hr;
-                if (is_hr) {
-                    last_y += s[last_i].length();
-                } else {
-                    last_x += s[last_i].length();
-                }
-                i = -1;
-                REP (len, LEN_MAX + 1) {
-                    vector<int> cands;
-                    for (int j : g_to[len][last_i]) {
-                        if (not used[j]) {
-                            cands.push_back(j);
-                        }
-                    }
-                    if (not cands.empty()) {
-                        i = cands[uniform_int_distribution<int>(0, (int)cands.size() - 1)(gen)];
-                        break;
-                    }
-                }
-                assert (i != -1);
-                if (is_hr) {
-                    x = (x - max_common_length[last_i][i] + N) % N;
-                } else {
-                    y = (y - max_common_length[last_i][i] + N) % N;
+            while (true) {
+                i = uniform_int_distribution<int>(0, m - 1)(gen);
+                if (not used[i]) {
+                    break;
                 }
             }
+            bool is_hr = uniform_int_distribution<int>(0, 4 - 1)(gen);
             string preserved;
             REP (z, s[i].length()) {
                 int ny = (y + (is_hr ? z : 0)) % N;
@@ -367,51 +224,13 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                 preserved += cur[ny][nx];
                 update(ny, nx, s[i][z]);
             }
-            last_i = i;
-            last_is_hr = is_hr;
-            last_y = y;
-            last_x = x;
             reject = [&, i, is_hr, preserved]() {
-                last_i = -1;
                 REP (z, s[i].length()) {
                     int ny = (y + (is_hr ? z : 0)) % N;
                     int nx = (x + (is_hr ? 0 : z)) % N;
                     update(ny, nx, preserved[z]);
                 }
             };
-
-        } else {
-            bool is_hr = bernoulli_distribution(0.5)(gen);
-            if (is_hr) {
-                char c = cur[y][0];
-                REP (z, N - 1) {
-                    update(y, z, cur[y][z + 1]);
-                }
-                update(y, N - 1, c);
-            } else {
-                char c = cur[0][x];
-                REP (z, N - 1) {
-                    update(z, x, cur[z + 1][x]);
-                }
-                update(N - 1, x, c);
-            }
-            reject = [&, is_hr]() {
-                if (is_hr) {
-                    char c = cur[y][N - 1];
-                    REP_R (z, N - 1) {
-                        update(y, z + 1, cur[y][z]);
-                    }
-                    update(y, 0, c);
-                } else {
-                    char c = cur[N - 1][x];
-                    REP_R (z, N - 1) {
-                        update(z + 1, x, cur[z][x]);
-                    }
-                    update(0, x, c);
-                }
-            };
-
-            last_i = -1;
         }
 
         int64_t nxt_score = calculate_score(m, cur_c, cur_d);
@@ -461,6 +280,11 @@ int main() {
         cin >> s[i];
     }
     array<array<char, N>, N> ans = solve(m, s, gen, clock_begin + chrono::duration_cast<chrono::milliseconds>(TIME_LIMIT * 0.95));
-    print_field(cout, ans);
+    REP (y, N) {
+        REP (x, N) {
+            cout << ans[y][x];
+        }
+        cout << endl;
+    }
     return 0;
 }
