@@ -371,7 +371,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
 int main() {
     constexpr auto TIME_LIMIT = chrono::milliseconds(3000);
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
-    xor_shift_128 gen(20210425);
+    xor_shift_128 gen(20210626);
 
     int n, m; cin >> n >> m;
     assert (n == N);
