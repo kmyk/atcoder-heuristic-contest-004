@@ -79,6 +79,15 @@ int64_t calculate_score(int m, int c, int d) {
     return c < m ? 1.0e8 * c / m : 1.0e8 * 2 * N * N / (2 * N * N - d);
 }
 
+void print_field(ostream &out, const array<array<char, N>, N>& f) {
+    REP (y, N) {
+        REP (x, N) {
+            out << f[y][x];
+        }
+        out << endl;
+    }
+}
+
 template <class RandomEngine>
 array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngine& gen, chrono::high_resolution_clock::time_point clock_end) {
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
@@ -189,8 +198,8 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
                 f[y][x] = s[i][z];
 
                 REP3 (len, LEN_MIN, LEN_MAX + 1) {
-                    if (x - len >= 0) {
-                        string t = get_horizontal_subarray_at(y, x - len, len, f);
+                    if (x + 1 - len >= 0) {
+                        string t = get_horizontal_subarray_at(y, x + 1 - len, len, f);
                         auto it = occur.find(t);
                         if (it != occur.end()) {
                             for (int j : it->second) {
@@ -219,7 +228,7 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
                 d -= 1;
             }
 
-            // assert (used[i]);
+            assert (used[i]);
             last = i;
         }
 
@@ -256,11 +265,6 @@ int main() {
         cin >> s[i];
     }
     array<array<char, N>, N> ans = solve(m, s, gen, clock_begin + chrono::duration_cast<chrono::milliseconds>(TIME_LIMIT * 0.95));
-    REP (y, N) {
-        REP (x, N) {
-            cout << ans[y][x];
-        }
-        cout << endl;
-    }
+    print_field(cout, ans);
     return 0;
 }
