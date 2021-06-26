@@ -153,6 +153,9 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
     auto update = [&](int y, int x, char c) {
         assert (0 <= y and y < N);
         assert (0 <= x and x < N);
+        if (cur[y][x] == c) {
+            return;
+        }
 
         REP (is_hr, 2) {
             REP3 (len, len_min, len_max + 1) {
@@ -201,6 +204,11 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
     };
 
+    int last_i = -1;
+    bool last_is_hr = false;
+    int last_y = -1;
+    int last_x = -1;
+
     int64_t iteration = 0;
     double temperature = 1.0;
     for (; ; ++ iteration) {
@@ -220,7 +228,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         std::function<void ()> reject = [&]() {};
 
         double choice = uniform_real_distribution<double>()(gen);
-        if (choice < 0.8) {
+        if (choice < 0.99) {
             char c = uniform_int_distribution<char>('A', 'H')(gen);
             char preserved = cur[y][x];
             update(y, x, c);
@@ -228,15 +236,46 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                 update(y, x, preserved);
             };
 
+            last_i = -1;
+
         } else if (choice < 1.0 and cur_c < m) {
             int i;
-            while (true) {
-                i = uniform_int_distribution<int>(0, m - 1)(gen);
-                if (not used[i]) {
-                    break;
+            bool is_hr;
+            if (last_i == -1) {
+                while (true) {
+                    i = uniform_int_distribution<int>(0, m - 1)(gen);
+                    if (not used[i]) {
+                        break;
+                    }
+                }
+                is_hr = uniform_int_distribution<int>(0, 4 - 1)(gen);
+            } else {
+                is_hr = last_is_hr;
+                if (is_hr) {
+                    last_y += s[last_i].length();
+                } else {
+                    last_x += s[last_i].length();
+                }
+                i = -1;
+                REP (len, LEN_MAX + 1) {
+                    vector<int> cands;
+                    for (int j : g_to[len][last_i]) {
+                        if (not used[j]) {
+                            cands.push_back(j);
+                        }
+                    }
+                    if (not cands.empty()) {
+                        i = cands[uniform_int_distribution<int>(0, (int)cands.size() - 1)(gen)];
+                        break;
+                    }
+                }
+                assert (i != -1);
+                if (is_hr) {
+                    x = (x - max_common_length[last_i][i] + N) % N;
+                } else {
+                    y = (y - max_common_length[last_i][i] + N) % N;
                 }
             }
-            int is_hr = uniform_int_distribution<int>(0, 4 - 1)(gen);
             string preserved;
             REP (z, s[i].length()) {
                 int ny = (y + (is_hr ? z : 0)) % N;
@@ -244,7 +283,12 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                 preserved += cur[ny][nx];
                 update(ny, nx, s[i][z]);
             }
+            last_i = i;
+            last_is_hr = is_hr;
+            last_y = y;
+            last_x = x;
             reject = [&, i, is_hr, preserved]() {
+                last_i = -1;
                 REP (z, s[i].length()) {
                     int ny = (y + (is_hr ? z : 0)) % N;
                     int nx = (x + (is_hr ? 0 : z)) % N;
@@ -282,6 +326,8 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                     update(0, x, c);
                 }
             };
+
+            last_i = -1;
         }
 
         int64_t nxt_score = calculate_score(m, cur_c, cur_d);
