@@ -181,6 +181,109 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
     };
 
+    auto bulkupdate = [&](int y, int x, bool is_hr, const string &s) {
+#if 0
+        assert (0 <= y and y < N);
+        assert (0 <= x and x < N);
+
+        REP3 (offset, - len_max + 1, 0 + 1) {
+            const trie_node *ptr = trie;
+            REP (i, (int)s.length() - 1 + len_max) {
+                ptr = peek_trie(is_hr ? cur[y][(x + i + offset + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                if (ptr == nullptr) {
+                    break;
+                }
+                if (offset + i >= 0) {
+                    for (int j : ptr->indices) {
+                        used[j] -= 1;
+                        if (not used[j]) {
+                            cur_c -= 1;
+                        }
+                    }
+                }
+            }
+        }
+        REP (z, s.length()) {
+            REP3 (offset, - len_max + 1, 0 + 1) {
+                const trie_node *ptr = trie;
+                REP (i, len_max) {
+                    ptr = peek_trie(not is_hr ? cur[(y + z) % N][modadd(modsub(x, - offset, N), i, N)] : cur[modadd(modsub(y, - offset, N), i, N)][(x + z) % N], ptr);
+                    if (ptr == nullptr) {
+                        break;
+                    }
+                    if (offset + i >= 0) {
+                        for (int j : ptr->indices) {
+                            used[j] -= 1;
+                            if (not used[j]) {
+                                cur_c -= 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        REP (i, s.length()) {
+            int ny = is_hr ? y : (y + i) % N;
+            int nx = is_hr ? (x + i) % N : x;
+            if (cur[ny][nx] == '.') {
+                cur_d -= 1;
+            }
+            cur[ny][nx] = s[i];
+            if (cur[ny][nx] == '.') {
+                cur_d += 1;
+            }
+        }
+
+        REP3 (offset, - len_max + 1, 0 + 1) {
+            const trie_node *ptr = trie;
+            REP (i, (int)s.length() - 1 + len_max) {
+                ptr = peek_trie(is_hr ? cur[y][(x + i + offset + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                if (ptr == nullptr) {
+                    break;
+                }
+                if (offset + i >= 0) {
+                    for (int j : ptr->indices) {
+                        if (not used[j]) {
+                            cur_c += 1;
+                        }
+                        used[j] += 1;
+                    }
+                }
+            }
+        }
+        REP (z, s.length()) {
+            REP3 (offset, - len_max + 1, 0 + 1) {
+                const trie_node *ptr = trie;
+                REP (i, len_max) {
+                    ptr = peek_trie(not is_hr ? cur[(y + z) % N][modadd(modsub(x, - offset, N), i, N)] : cur[modadd(modsub(y, - offset, N), i, N)][(x + z) % N], ptr);
+                    if (ptr == nullptr) {
+                        break;
+                    }
+                    if (offset + i >= 0) {
+                        for (int j : ptr->indices) {
+                            if (not used[j]) {
+                                cur_c += 1;
+                            }
+                            used[j] += 1;
+                        }
+                    }
+                }
+            }
+        }
+#else
+        REP (i, s.length()) {
+            if (is_hr) {
+                update(y, (x + i) % N, s[i]);
+            } else {
+                update((y + i) % N, x, s[i]);
+            }
+        }
+        return;
+#endif
+    };
+
+
     int64_t iteration = 0;
     double temperature = 1.0;
     for (; ; ++ iteration) {
@@ -218,18 +321,12 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
             }
             bool is_hr = bernoulli_distribution(0.9)(gen);
             string preserved;
-            REP (z, s[i].length()) {
-                int ny = (y + (is_hr ? z : 0)) % N;
-                int nx = (x + (is_hr ? 0 : z)) % N;
-                preserved += cur[ny][nx];
-                update(ny, nx, s[i][z]);
+            REP (j, s[i].length()) {
+                preserved += (is_hr ? cur[y][(x + j) % N] : cur[(y + j) % N][x]);
             }
-            reject = [&, i, is_hr, preserved]() {
-                REP (z, s[i].length()) {
-                    int ny = (y + (is_hr ? z : 0)) % N;
-                    int nx = (x + (is_hr ? 0 : z)) % N;
-                    update(ny, nx, preserved[z]);
-                }
+            bulkupdate(y, x, is_hr, s[i]);
+            reject = [&, is_hr, preserved]() {
+                bulkupdate(y, x, is_hr, preserved);
             };
         }
 
@@ -248,6 +345,9 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                 ans_c = cur_c;
                 ans_d = cur_d;
             }
+#ifdef LOCAL
+            assert (count(ALL(used), 0) == m - cur_c);
+#endif
         } else {
             reject();
         }
