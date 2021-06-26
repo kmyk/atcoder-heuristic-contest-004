@@ -236,16 +236,8 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
     }
     int average_length = round(sum_length / m);
 
-    cerr << "ans =" << endl;
     cerr << "m = " << m << endl;
     cerr << "average length = " << average_length << endl;
-    REP (y, N) {
-        cerr << "    ";
-        REP (x, N) {
-            cerr << ans[y][x];
-        }
-        cerr << endl;
-    }
     cerr << "c = " << m - highscore.first << endl;
     cerr << "d = " << highscore.second << endl;
     cerr << "score = " << calculate_score(m, m - highscore.first, highscore.second) / 1.0e8 << "e8" << endl;
