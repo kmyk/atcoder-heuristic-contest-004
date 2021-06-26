@@ -279,7 +279,7 @@ int main() {
     REP (i, m) {
         cin >> s[i];
     }
-    array<array<char, N>, N> ans = solve(m, s, gen, clock_begin + chrono::duration_cast<chrono::milliseconds>(TIME_LIMIT * 0.95));
+    array<array<char, N>, N> ans = solve(m, s, gen, clock_begin + chrono::duration_cast<chrono::milliseconds>(TIME_LIMIT * 0.99));
     REP (y, N) {
         REP (x, N) {
             cout << ans[y][x];
