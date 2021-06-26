@@ -90,11 +90,11 @@ void print_field(ostream &out, const array<array<char, N>, N>& f) {
 }
 
 struct trie_node {
-    array<unique_ptr<trie_node>, D> children;
+    array<trie_node *, D> children;
     vector<int> indices;
 };
 
-unique_ptr<trie_node> construct_trie(const vector<pair<string, int>> &s) {
+trie_node *construct_trie(const vector<pair<string, int>> &s) {
     if (s.empty()) {
         return nullptr;
     }
@@ -107,14 +107,14 @@ unique_ptr<trie_node> construct_trie(const vector<pair<string, int>> &s) {
             ts[s_i.first[0] - 'A'].emplace_back(s_i.first.substr(1), s_i.second);
         }
     }
-    array<unique_ptr<trie_node>, D> children;
+    array<trie_node *, D> children;
     REP (d, D) {
         children[d] = construct_trie(ts[d]);
     }
-    return make_unique<trie_node>((trie_node) {move(children), indices});
+    return new trie_node((trie_node) {children, indices});
 }
 
-unique_ptr<trie_node> construct_trie(const vector<string> &s) {
+trie_node *construct_trie(const vector<string> &s) {
     vector<pair<string, int>> t(s.size());
     REP (i, s.size()) {
         t[i] = make_pair(s[i], i);
@@ -122,7 +122,17 @@ unique_ptr<trie_node> construct_trie(const vector<string> &s) {
     return construct_trie(t);
 }
 
-const vector<int> *lookup_trie_horizontal(int y, int x, int len, const array<array<char, N>, N>& f, const unique_ptr<trie_node> &trie) {
+const trie_node *peek_trie(char c, const trie_node *trie) {
+    if (trie == nullptr) {
+        return nullptr;
+    }
+    if (c == '.') {
+        return nullptr;
+    }
+    return trie->children[c - 'A'];
+}
+
+const vector<int> *lookup_trie_horizontal(int y, int x, int len, const array<array<char, N>, N>& f, const trie_node *trie) {
     if (trie == nullptr) {
         return nullptr;
     }
@@ -135,7 +145,7 @@ const vector<int> *lookup_trie_horizontal(int y, int x, int len, const array<arr
     return lookup_trie_horizontal(y, (x + 1) % N, len - 1, f, trie->children[f[y][x] - 'A']);
 }
 
-const vector<int> *lookup_trie_vertical(int y, int x, int len, const array<array<char, N>, N>& f, const unique_ptr<trie_node> &trie) {
+const vector<int> *lookup_trie_vertical(int y, int x, int len, const array<array<char, N>, N>& f, const trie_node *trie) {
     if (trie == nullptr) {
         return nullptr;
     }
@@ -205,7 +215,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
     }
 
-    unique_ptr<trie_node> trie = construct_trie(s);
+    const trie_node *trie = construct_trie(s);
 
     array<array<char, N>, N> cur = get_empty_board();
     int cur_c = 0;
@@ -220,13 +230,15 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
 
         REP (is_hr, 2) {
-            REP3 (len, len_min, len_max + 1) {
-                REP3 (delta, - len + 1, 0 + 1) {
-                    const vector<int> *indices = is_hr
-                        ? lookup_trie_horizontal(y, (x + delta + N) % N, len, cur, trie)
-                        : lookup_trie_vertical((y + delta + N) % N, x, len, cur, trie);
-                    if (indices != nullptr) {
-                        for (int j : *indices) {
+            REP3 (offset, - len_max + 1, 0 + 1) {
+                const trie_node *ptr = trie;
+                REP (i, len_max) {
+                    ptr = peek_trie(is_hr ? cur[y][(x + offset + i + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                    if (ptr == nullptr) {
+                        break;
+                    }
+                    if (offset + i >= 0) {
+                        for (int j : ptr->indices) {
                             used[j] -= 1;
                             if (not used[j]) {
                                 cur_c -= 1;
@@ -246,13 +258,15 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
         }
 
         REP (is_hr, 2) {
-            REP3 (len, LEN_MIN, LEN_MAX + 1) {
-                REP3 (delta, - len + 1, 0 + 1) {
-                    const vector<int> *indices = is_hr
-                        ? lookup_trie_horizontal(y, (x + delta + N) % N, len, cur, trie)
-                        : lookup_trie_vertical((y + delta + N) % N, x, len, cur, trie);
-                    if (indices != nullptr) {
-                        for (int j : *indices) {
+            REP3 (offset, - len_max + 1, 0 + 1) {
+                const trie_node *ptr = trie;
+                REP (i, len_max) {
+                    ptr = peek_trie(is_hr ? cur[y][(x + offset + i + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                    if (ptr == nullptr) {
+                        break;
+                    }
+                    if (offset + i >= 0) {
+                        for (int j : ptr->indices) {
                             if (not used[j]) {
                                 cur_c += 1;
                             }
