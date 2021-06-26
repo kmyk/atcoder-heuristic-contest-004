@@ -158,6 +158,16 @@ const vector<int> *lookup_trie_vertical(int y, int x, int len, const array<array
     return lookup_trie_vertical((y + 1) % N, x, len - 1, f, trie->children[f[y][x] - 'A']);
 }
 
+inline int modadd(int a, int b, int m) {
+    int c = a + b;
+    return c >= m ? c - m : c;
+}
+
+inline int modsub(int a, int b, int m) {
+    int c = a - b;
+    return c < 0 ? c + m : c;
+}
+
 template <class RandomEngine>
 array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngine& gen, chrono::high_resolution_clock::time_point clock_end) {
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
@@ -233,7 +243,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
             REP3 (offset, - len_max + 1, 0 + 1) {
                 const trie_node *ptr = trie;
                 REP (i, len_max) {
-                    ptr = peek_trie(is_hr ? cur[y][(x + offset + i + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                    ptr = peek_trie(is_hr ? cur[y][modadd(modsub(x, - offset, N), i, N)] : cur[modadd(modsub(y, - offset, N), i, N)][x], ptr);
                     if (ptr == nullptr) {
                         break;
                     }
@@ -261,7 +271,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
             REP3 (offset, - len_max + 1, 0 + 1) {
                 const trie_node *ptr = trie;
                 REP (i, len_max) {
-                    ptr = peek_trie(is_hr ? cur[y][(x + offset + i + N) % N] : cur[(y + offset + i + N) % N][x], ptr);
+                    ptr = peek_trie(is_hr ? cur[y][modadd(modsub(x, - offset, N), i, N)] : cur[modadd(modsub(y, - offset, N), i, N)][x], ptr);
                     if (ptr == nullptr) {
                         break;
                     }
