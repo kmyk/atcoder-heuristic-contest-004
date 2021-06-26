@@ -151,6 +151,9 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
     vector<int> used(m);
 
     auto update = [&](int y, int x, char c) {
+        assert (0 <= y and y < N);
+        assert (0 <= x and x < N);
+
         REP (is_hr, 2) {
             REP3 (len, len_min, len_max + 1) {
                 REP3 (delta, - len + 1, 0 + 1) {
@@ -205,7 +208,6 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
             chrono::high_resolution_clock::time_point clock_now = chrono::high_resolution_clock::now();
             temperature = static_cast<long double>((clock_end - clock_now).count()) / (clock_end - clock_begin).count();
             if (temperature <= 0.0) {
-                cerr << "done  (iteration = " << iteration << ")" << endl;
                 break;
             }
         }
@@ -214,9 +216,73 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
 
         int y = uniform_int_distribution<int>(0, N - 1)(gen);
         int x = uniform_int_distribution<int>(0, N - 1)(gen);
-        char c = uniform_int_distribution<char>('A', 'H')(gen);
-        char preserved = cur[y][x];
-        update(y, x, c);
+        std::function<void ()> accept = [&]() {};
+        std::function<void ()> reject = [&]() {};
+
+        double choice = uniform_real_distribution<double>()(gen);
+        if (choice < 0.8) {
+            char c = uniform_int_distribution<char>('A', 'H')(gen);
+            char preserved = cur[y][x];
+            update(y, x, c);
+            reject = [&, preserved]() {
+                update(y, x, preserved);
+            };
+
+        } else if (choice < 1.0 and cur_c < m) {
+            int i;
+            while (true) {
+                i = uniform_int_distribution<int>(0, m - 1)(gen);
+                if (not used[i]) {
+                    break;
+                }
+            }
+            int is_hr = uniform_int_distribution<int>(0, 4 - 1)(gen);
+            string preserved;
+            REP (z, s[i].length()) {
+                int ny = (y + (is_hr ? z : 0)) % N;
+                int nx = (x + (is_hr ? 0 : z)) % N;
+                preserved += cur[ny][nx];
+                update(ny, nx, s[i][z]);
+            }
+            reject = [&, i, is_hr, preserved]() {
+                REP (z, s[i].length()) {
+                    int ny = (y + (is_hr ? z : 0)) % N;
+                    int nx = (x + (is_hr ? 0 : z)) % N;
+                    update(ny, nx, preserved[z]);
+                }
+            };
+
+        } else {
+            bool is_hr = bernoulli_distribution(0.5)(gen);
+            if (is_hr) {
+                char c = cur[y][0];
+                REP (z, N - 1) {
+                    update(y, z, cur[y][z + 1]);
+                }
+                update(y, N - 1, c);
+            } else {
+                char c = cur[0][x];
+                REP (z, N - 1) {
+                    update(z, x, cur[z + 1][x]);
+                }
+                update(N - 1, x, c);
+            }
+            reject = [&, is_hr]() {
+                if (is_hr) {
+                    char c = cur[y][N - 1];
+                    REP_R (z, N - 1) {
+                        update(y, z + 1, cur[y][z]);
+                    }
+                    update(y, 0, c);
+                } else {
+                    char c = cur[N - 1][x];
+                    REP_R (z, N - 1) {
+                        update(z + 1, x, cur[z][x]);
+                    }
+                    update(0, x, c);
+                }
+            };
+        }
 
         int64_t nxt_score = calculate_score(m, cur_c, cur_d);
 
@@ -226,17 +292,15 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
             return exp(boltzmann * delta / temperature);
         };
         if (delta >= 0 or bernoulli_distribution(probability())(gen)) {
-            // accept
+            accept();
             if (highscore < nxt_score) {
                 highscore = nxt_score;
                 ans = cur;
                 ans_c = cur_c;
                 ans_d = cur_d;
             }
-
         } else {
-            // reject
-            update(y, x, preserved);
+            reject();
         }
     }
 
@@ -248,6 +312,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
 
     cerr << "m = " << m << endl;
     cerr << "average length = " << average_length << endl;
+    cerr << "iteration = " << iteration << endl;
     cerr << "c = " << ans_c << endl;
     cerr << "d = " << ans_d << endl;
     cerr << "score = " << highscore / 1.0e8 << "e8" << endl;
