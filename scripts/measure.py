@@ -31,7 +31,7 @@ def gen(*, seeds: List[int]) -> None:
     with open('seeds.txt', 'w') as fh:
         for seed in seeds:
             print(seed, file=fh)
-    command = [str((pathlib.Path.cwd() / 'tools' / 'target' / 'release' / 'vis').resolve()), 'seeds.txt']
+    command = [str((pathlib.Path.cwd() / 'tools' / 'target' / 'release' / 'gen').resolve()), 'seeds.txt']
     subprocess.check_call(command)
 
 
