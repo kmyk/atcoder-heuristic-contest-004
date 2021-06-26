@@ -46,9 +46,6 @@ int64_t calculate_score(int m, int c, int d) {
     return c < m ? 1.0e8 * c / m : 1.0e8 * 2 * N * N / (2 * N * N - d);
 }
 
-void print_field(ostream &out, const array<array<char, N>, N>& f) {
-}
-
 struct trie_node {
     array<trie_node *, D> children;
     vector<int> indices;
