@@ -216,7 +216,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
                     break;
                 }
             }
-            bool is_hr = bernoulli_distribution(0.5)(gen);
+            bool is_hr = bernoulli_distribution(0.9)(gen);
             string preserved;
             REP (z, s[i].length()) {
                 int ny = (y + (is_hr ? z : 0)) % N;
