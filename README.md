@@ -2,6 +2,10 @@
 
 <https://atcoder.jp/contests/ahc004/submissions/23742353>
 
+## 結果
+
+6408108055 点 29 位
+
 ## 解法
 
 1 点更新愚直焼きなまし (ただし 1% の確率で `s[i]` をそのまま書き込む遷移をする) + ひたすら高速化
@@ -29,3 +33,7 @@
 -   18:28 文字列をまるごと使う遷移の高速化をしないといけない。
 -   18:42 バグった。たすけて。やばい。
 -   18:56 もう無理。間に合いません。
+
+## ビジュアライズ
+
+![](https://raw.githubusercontent.com/kmyk/atcoder-heuristic-contest-004/main/vis.png)
