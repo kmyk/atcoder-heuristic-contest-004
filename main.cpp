@@ -161,7 +161,6 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
             if (last == -1) {
                 i = uniform_int_distribution<int>(0, m - 1)(gen);
             } else {
-                vector<int> cands;
                 REP (len, LEN_MAX + 1) {
                     vector<int> cands;
                     for (int j : g_to[len][last]) {
