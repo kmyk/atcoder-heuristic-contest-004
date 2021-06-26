@@ -75,6 +75,10 @@ string get_vertical_subarray_at(int y, int x, int len, const array<array<char, N
     return s;
 }
 
+int64_t calculate_score(int m, int c, int d) {
+    return c < m ? 1.0e8 * c / m : 1.0e8 * 2 * N * N / (2 * N * N - d);
+}
+
 template <class RandomEngine>
 array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngine& gen, chrono::high_resolution_clock::time_point clock_end) {
     chrono::high_resolution_clock::time_point clock_begin = chrono::high_resolution_clock::now();
@@ -174,7 +178,9 @@ array<array<char, N>, N> solve(const int m, const vector<string>& s, RandomEngin
         }
         cerr << endl;
     }
-    cerr << "score = (c, d) = (" << m - highscore.first << ", " << highscore.second << ")" << endl;
+    cerr << "c = " << m - highscore.first << endl;
+    cerr << "d = " << highscore.second << endl;
+    cerr << "score = " << calculate_score(m, m - highscore.first, highscore.second) / 1.0e8 << " * 10^8" << endl;
     return ans;
 }
 
