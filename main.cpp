@@ -288,7 +288,7 @@ array<array<char, N>, N> solve(const int m, const vector<string> &s, RandomEngin
 
         int64_t delta = nxt_score - prv_score;
         auto probability = [&]() {
-            constexpr long double boltzmann = 0.01;
+            constexpr long double boltzmann = 0.00002;
             return exp(boltzmann * delta / temperature);
         };
         if (delta >= 0 or bernoulli_distribution(probability())(gen)) {
